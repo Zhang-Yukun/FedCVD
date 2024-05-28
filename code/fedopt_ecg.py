@@ -1,5 +1,5 @@
 
-from algorithm.ecg.scaffold import ScaffoldSerialClientTrainer, ScaffoldServerHandler
+from algorithm.ecg.fedopt import FedOptServerHandler, FedOptSerialClientTrainer
 from algorithm.pipeline import Pipeline
 from fedlab.utils.functional import setup_seed
 from fedlab.utils.logger import Logger
@@ -22,6 +22,7 @@ if __name__ == "__main__":
     communication_round = 50
     num_clients = 4
     sample_ratio = 1
+
     train_datasets = [get_dataset(
         [
             os.path.join("/data/zyk/data/dataset/ECG/preprocessed/client" + str(i) + "/train_valid_20_r.csv")
@@ -39,11 +40,15 @@ if __name__ == "__main__":
         n_classes=20
     ) for i in range(1, 5)]
 
-    base_path = "/data/zyk/code/fedmace_benchmark/output/scaffold/"
+    base_path = "/data/zyk/code/fedmace_benchmark/output/fedopt/fedadam/"
 
+    beta1 = 0.9
+    beta2 = 0.999
+    tau = 1e-3
+    option = "adam"
     for batch_size in [32]:
-        for server_lr in [0.001, 0.01, 0.1, 1]:
-            for client_lr in [0.1, 0.01, 0.001]:
+        for server_lr in [0.001, 0.00001, 0.00001]:
+            for client_lr in [0.1, 0.01, 0.001, 0.0001]:
             # for lr in [0.1]:
                 timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
                 output_path = base_path + timestamp + "/"
@@ -69,6 +74,10 @@ if __name__ == "__main__":
                     "batch_size": batch_size,
                     "client_lr": client_lr,
                     "server_lr": server_lr,
+                    "beta1": beta1,
+                    "beta2": beta2,
+                    "tau": tau,
+                    "option": option,
                     "criterion": "BCELoss",
                     "num_clients": num_clients,
                     "sample_ratio": sample_ratio,
@@ -84,7 +93,7 @@ if __name__ == "__main__":
                 ]
                 server_logger = Logger(log_name="server", log_file=output_path + "server/logger.log")
 
-                trainer = ScaffoldSerialClientTrainer(
+                trainer = FedOptSerialClientTrainer(
                     model=model,
                     num_clients=num_clients,
                     train_loaders=train_loaders,
@@ -98,8 +107,12 @@ if __name__ == "__main__":
                     logger=client_loggers
                 )
 
-                handler = ScaffoldServerHandler(
+                handler = FedOptServerHandler(
                     lr=server_lr,
+                    beta1=beta1,
+                    beta2=beta2,
+                    tau=tau,
+                    option=option,
                     model=model,
                     test_loaders=test_loaders,
                     criterion=criterion,

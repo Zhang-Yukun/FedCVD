@@ -13,6 +13,34 @@ import pandas as pd
 import numpy as np
 
 class ScaffoldServerHandler(FedAvgServerHandler):
+    def __init__(
+        self,
+        lr: float,
+        model: torch.nn.Module,
+        test_loaders,
+        criterion: torch.nn.Module,
+        output_path: str,
+        evaluator,
+        communication_round: int,
+        num_clients: int = 0,
+        sample_ratio: float = 1,
+        device: torch.device | None = None,
+        logger: Logger = None,
+    ):
+        super(ScaffoldServerHandler, self).__init__(
+            model=model,
+            test_loaders=test_loaders,
+            criterion=criterion,
+            output_path=output_path,
+            evaluator=evaluator,
+            communication_round=communication_round,
+            num_clients=num_clients,
+            sample_ratio=sample_ratio,
+            device=device,
+            logger=logger
+        )
+        self.lr = lr
+        self.global_c = torch.zeros_like(self.model_parameters)
 
     @property
     def downlink_package(self):
@@ -70,7 +98,7 @@ class ScaffoldSerialClientTrainer(FedAvgSerialClientTrainer):
         global_c = payload[1]
         for idx in id_list:
             self.set_model(model_parameters)
-            frz_model = deepcopy(self._model)
+            frz_model = model_parameters
             if self.cs[idx] is None:
                 self.cs[idx] = torch.zeros_like(model_parameters)
             for epoch in range(self.max_epoch):
