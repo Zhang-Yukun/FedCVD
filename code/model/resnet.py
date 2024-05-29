@@ -1,4 +1,3 @@
-
 from torch.nn import Module
 import torch.nn as nn
 import torch
@@ -14,6 +13,7 @@ def conv1x(in_channels, out_channels, stride=1):
 
 class BasicBlock(Module):
     expansion: int = 1
+
     def __init__(self, input_channels, output_channels, stride=1, downsample=None):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x(input_channels, output_channels, stride)
@@ -44,7 +44,7 @@ class BasicBlock(Module):
 
 
 class ResNet(Module):
-    def __init__(self, input_channels, block, layers, num_classes=20):
+    def __init__(self, input_channels, block, layers, num_classes=20, task='mutlilabel'):
         super(ResNet, self).__init__()
         self.in_channels = 64
 
@@ -59,8 +59,11 @@ class ResNet(Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
         self.avgpool = nn.AdaptiveAvgPool1d(1)
         self.fc = nn.Linear(512 * block.expansion, num_classes)
-        self.sigmoid = nn.Sigmoid()
-
+        self.type = task
+        if self.type == 'multilabel':
+            self.act = nn.Sigmoid()
+        elif self.type == 'multiclass':
+            self.act = nn.Softmax(dim=-1)
 
     def _make_layer(self, block, channels, block_num, stride=1):
         downsample = None
@@ -76,6 +79,8 @@ class ResNet(Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
+        # x:(batch_size, chanel, length)
+        # x: (batch_size, 1, 784)
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -89,10 +94,10 @@ class ResNet(Module):
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.fc(x)
-        x = self.sigmoid(x)
+        x = self.act(x)
 
         return x
 
 
-def resnet1d34(input_channels=12, num_classes=20):
-    return ResNet(input_channels, BasicBlock, [3, 4, 6, 3], num_classes)
+def resnet1d34(input_channels=12, num_classes=20, task='mutlilabel'):
+    return ResNet(input_channels, BasicBlock, [3, 4, 6, 3], num_classes, task=task)

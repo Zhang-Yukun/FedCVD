@@ -13,10 +13,10 @@
 # limitations under the License.
 
 import numpy as np
+# import pandas as pd
+# import seaborn as sns
 import pandas as pd
-import seaborn as sns
-import pandas as pd
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 import warnings
 from collections import Counter
 
@@ -629,59 +629,60 @@ def feddata_scatterplot(
 
     Examples:
         First generate data partition:
-
-        >>> sample_num = 15
-        >>> class_num = 4
-        >>> clients_num = 3
-        >>> num_per_client = int(sample_num/clients_num)
-        >>> labels = np.random.randint(class_num, size=sample_num)  # generate 15 labels, each label is 0 to 3
-        >>> rand_per = np.random.permutation(sample_num)
-        >>> # partition synthetic data into 3 clients
-        >>> data_indices = {0: rand_per[0:num_per_client],
-        ...                 1: rand_per[num_per_client:num_per_client*2],
-        ...                 2: rand_per[num_per_client*2:num_per_client*3]}
-
-        
-        Now generate visualization for this data distribution:
-        >>> title = 'Data Distribution over Clients for Each Class'
-        >>> fig = feddata_scatterplot(labels.tolist(),
-        ...                           data_indices,
-        ...                           clients_num,
-        ...                           class_num,
-        ...                           figsize=(6, 4),
-        ...                           max_size=200,
-        ...                           title=title)
-        >>> plt.show(fig)  # Show the plot
-        >>> fig.savefig(f'feddata-scatterplot-vis.png')  # Save the plot
-    """
-    palette = sns.color_palette("Set2", num_classes)
-    report_df = partition_report(
-        targets, client_dict, class_num=num_classes, verbose=True
-    )
-    sample_stats = report_df.values[:, 1 : 1 + num_classes]
-    min_max_ratio = np.min(sample_stats) / np.max(sample_stats)
-    data_tuples = []
-    for cid in range(num_clients):
-        for k in range(num_classes):
-            data_tuples.append((cid, k, sample_stats[cid, k] / np.max(sample_stats)))
-
-    df = pd.DataFrame(data_tuples, columns=["Client", "Class", "Samples"])
-    plt.figure(figsize=figsize)
-    scatter = sns.scatterplot(
-        data=df,
-        x="Client",
-        y="Class",
-        size="Samples",
-        hue="Class",
-        palette=palette,
-        legend=False,
-        sizes=(max_size * min_max_ratio, max_size),
-    )
-
-    # Customize the axes and layout
-    plt.xticks(range(num_clients), [f"Client {cid+1}" for cid in range(num_clients)])
-    plt.yticks(range(num_classes), [f"Class {k+1}" for k in range(num_classes)])
-    plt.xlabel("Clients")
-    plt.ylabel("Classes")
-    plt.title(title)
-    return plt.gcf()
+    #
+    #     >>> sample_num = 15
+    #     >>> class_num = 4
+    #     >>> clients_num = 3
+    #     >>> num_per_client = int(sample_num/clients_num)
+    #     >>> labels = np.random.randint(class_num, size=sample_num)  # generate 15 labels, each label is 0 to 3
+    #     >>> rand_per = np.random.permutation(sample_num)
+    #     >>> # partition synthetic data into 3 clients
+    #     >>> data_indices = {0: rand_per[0:num_per_client],
+    #     ...                 1: rand_per[num_per_client:num_per_client*2],
+    #     ...                 2: rand_per[num_per_client*2:num_per_client*3]}
+    #
+    #
+    #     Now generate visualization for this data distribution:
+    #     >>> title = 'Data Distribution over Clients for Each Class'
+    #     >>> fig = feddata_scatterplot(labels.tolist(),
+    #     ...                           data_indices,
+    #     ...                           clients_num,
+    #     ...                           class_num,
+    #     ...                           figsize=(6, 4),
+    #     ...                           max_size=200,
+    #     ...                           title=title)
+    #     >>> plt.show(fig)  # Show the plot
+    #     >>> fig.savefig(f'feddata-scatterplot-vis.png')  # Save the plot
+    # """
+    # # palette = sns.color_palette("Set2", num_classes)
+    # report_df = partition_report(
+    #     targets, client_dict, class_num=num_classes, verbose=True
+    # )
+    # sample_stats = report_df.values[:, 1 : 1 + num_classes]
+    # min_max_ratio = np.min(sample_stats) / np.max(sample_stats)
+    # data_tuples = []
+    # for cid in range(num_clients):
+    #     for k in range(num_classes):
+    #         data_tuples.append((cid, k, sample_stats[cid, k] / np.max(sample_stats)))
+    #
+    # df = pd.DataFrame(data_tuples, columns=["Client", "Class", "Samples"])
+    # plt.figure(figsize=figsize)
+    # scatter = sns.scatterplot(
+    #     data=df,
+    #     x="Client",
+    #     y="Class",
+    #     size="Samples",
+    #     hue="Class",
+    #     palette=palette,
+    #     legend=False,
+    #     sizes=(max_size * min_max_ratio, max_size),
+    # )
+    #
+    # # Customize the axes and layout
+    # plt.xticks(range(num_clients), [f"Client {cid+1}" for cid in range(num_clients)])
+    # plt.yticks(range(num_classes), [f"Class {k+1}" for k in range(num_classes)])
+    # plt.xlabel("Clients")
+    # plt.ylabel("Classes")
+    # plt.title(title)
+    # return plt.gcf()
+    pass
