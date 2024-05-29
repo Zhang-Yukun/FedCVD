@@ -101,9 +101,8 @@ class FedOptSerialClientTrainer(FedAvgSerialClientTrainer):
         model_parameters = payload[0]
         for idx in id_list:
             self.set_model(model_parameters)
-            frz_model = deepcopy(self._model)
             for epoch in range(self.max_epoch):
-                pack = self.train(epoch, frz_model, idx)
+                pack = self.train(epoch, idx)
                 self.local_test(idx, epoch)
                 self.global_test(idx, epoch)
             self.cache.append(pack)
@@ -114,7 +113,7 @@ class FedOptSerialClientTrainer(FedAvgSerialClientTrainer):
                 self.output_path + "client" + str(idx + 1) + "/model.pth"
             )
 
-    def train(self, epoch, frz_model, idx):
+    def train(self, epoch, idx):
         self._model.train()
 
         metric = Accumulator(3)
