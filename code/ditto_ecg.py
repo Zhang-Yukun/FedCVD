@@ -1,5 +1,5 @@
 
-from algorithm.ecg.fedopt import FedOptServerHandler, FedOptSerialClientTrainer
+from algorithm.ecg.ditto import DittoServerHandler, DittoSerialClientTrainer
 from algorithm.pipeline import Pipeline
 from fedlab.utils.functional import setup_seed
 from fedlab.utils.logger import Logger
@@ -13,8 +13,7 @@ from model.resnet import resnet1d34
 from utils.evaluation import FedClientMultiLabelEvaluator, FedServerMultiLabelEvaluator
 from utils.dataloader import get_dataloader, get_dataset
 from utils.io import guarantee_path
-import jso
-
+import json
 
 if __name__ == "__main__":
     setup_seed(42)
@@ -23,7 +22,6 @@ if __name__ == "__main__":
     communication_round = 50
     num_clients = 4
     sample_ratio = 1
-
     train_datasets = [get_dataset(
         [
             os.path.join("/data/zyk/data/dataset/ECG/preprocessed/client" + str(i) + "/train_valid_20_r.csv")
@@ -41,15 +39,11 @@ if __name__ == "__main__":
         n_classes=20
     ) for i in range(1, 5)]
 
-    base_path = "/data/zyk/code/fedmace_benchmark/output/fedopt/fedadam/"
+    base_path = "/data/zyk/code/fedmace_benchmark/output/ditto/"
 
-    beta1 = 0.9
-    beta2 = 0.99
-    tau = 1e-2
-    option = "adam"
     for batch_size in [32]:
-        for server_lr in [0.1, 0.001, 0.0001]:
-            for client_lr in [0.1, 0.01, 0.001]:
+        for mu in [0.01, 0.1, 1.0]:
+            for lr in [0.1, 0.01, 0.001]:
             # for lr in [0.1]:
                 timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
                 output_path = base_path + timestamp + "/"
@@ -73,12 +67,8 @@ if __name__ == "__main__":
                     "dataset": "ECG",
                     "model": "resnet1d34",
                     "batch_size": batch_size,
-                    "client_lr": client_lr,
-                    "server_lr": server_lr,
-                    "beta1": beta1,
-                    "beta2": beta2,
-                    "tau": tau,
-                    "option": option,
+                    "client_lr": lr,
+                    "mu": mu,
                     "criterion": "BCELoss",
                     "num_clients": num_clients,
                     "sample_ratio": sample_ratio,
@@ -94,12 +84,13 @@ if __name__ == "__main__":
                 ]
                 server_logger = Logger(log_name="server", log_file=output_path + "server/logger.log")
 
-                trainer = FedOptSerialClientTrainer(
+                trainer = DittoSerialClientTrainer(
+                    mu=mu,
                     model=model,
                     num_clients=num_clients,
                     train_loaders=train_loaders,
                     test_loaders=test_loaders,
-                    lr=client_lr,
+                    lr=lr,
                     criterion=criterion,
                     max_epoch=max_epoch,
                     output_path=output_path,
@@ -108,12 +99,7 @@ if __name__ == "__main__":
                     logger=client_loggers
                 )
 
-                handler = FedOptServerHandler(
-                    lr=server_lr,
-                    beta1=beta1,
-                    beta2=beta2,
-                    tau=tau,
-                    option=option,
+                handler = DittoServerHandler(
                     model=model,
                     test_loaders=test_loaders,
                     criterion=criterion,
