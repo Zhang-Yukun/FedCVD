@@ -13,7 +13,8 @@ from model.resnet import resnet1d34
 from utils.evaluation import FedClientMultiLabelEvaluator, FedServerMultiLabelEvaluator
 from utils.dataloader import get_dataloader, get_dataset
 from utils.io import guarantee_path
-import json
+import jso
+
 
 if __name__ == "__main__":
     setup_seed(42)

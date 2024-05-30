@@ -1,19 +1,19 @@
 
-from algorithm.ecg.fedprox import FedProxServerHandler, FedProxSerialClientTrainer
-from algorithm.pipeline import Pipeline
+import json
+import os
+from datetime import datetime
+
+import torch.nn as nn
 from fedlab.utils.functional import setup_seed
 from fedlab.utils.logger import Logger
 from torch.utils.data import DataLoader
-from datetime import datetime
-import os
-import torch
-import torch.optim as optim
-import torch.nn as nn
+
+from algorithm.ecg.fedprox import FedProxServerHandler, FedProxSerialClientTrainer
+from algorithm.pipeline import Pipeline
 from model.resnet import resnet1d34
+from utils.dataloader import get_dataset
 from utils.evaluation import FedClientMultiLabelEvaluator, FedServerMultiLabelEvaluator
-from utils.dataloader import get_dataloader, get_dataset
 from utils.io import guarantee_path
-import json
 
 if __name__ == "__main__":
     setup_seed(42)
