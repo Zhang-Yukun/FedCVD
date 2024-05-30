@@ -42,7 +42,9 @@ if __name__ == "__main__":
     base_path = "/data/zyk/code/fedmace_benchmark/output/scaffold/"
 
     for batch_size in [32]:
-        for server_lr in [0.001, 0.01, 0.1, 1]:
+        # for server_lr in [0.001, 0.01, 0.1, 1]:
+        # for server_lr in [0.01, 0.1, 1]:
+        for server_lr in [1, 0.1]:
             for client_lr in [0.1, 0.01, 0.001]:
             # for lr in [0.1]:
                 timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
