@@ -99,9 +99,11 @@ class ResNet(Module):
 
         return x
 
+
 def resnet1d34(input_channels=12, num_classes=20, task='mutlilabel'):
     return ResNet(input_channels, BasicBlock, [3, 4, 6, 3], num_classes, task=task)
 
 
 def resnet50(pretrained=None, num_classes=4):
     return torchvision.models.segmentation.deeplabv3_resnet50(pretrained=pretrained, num_classes=num_classes)
+                                                              #weights_backbone=None, weights=None)

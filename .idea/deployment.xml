@@ -6,7 +6,7 @@
       <paths name="A1:stupidtree@10.249.45.162:22">
         <serverdata>
           <mappings>
-            <mapping deploy="/data/stupidtree/project/FedCVD" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/data/stupidtree/project/FedCVD" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>
