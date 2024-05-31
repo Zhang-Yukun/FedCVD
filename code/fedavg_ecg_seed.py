@@ -77,6 +77,7 @@ if __name__ == "__main__":
                 "sample_ratio": sample_ratio,
                 "communication_round": communication_round,
                 "max_epoch": max_epoch,
+                "seed": args.seed
             }
             with open(output_path + "setting.json", "w") as f:
                 f.write(json.dumps(setting))

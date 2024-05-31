@@ -211,6 +211,57 @@ class EchoCollator:
         return dict(ids=ids, videos=videos, labels=labels)
 
 
+class ECHODataset(Dataset):
+    def __init__(self, meta: pd.DataFrame, base_path: str, locations: list[str], file_name: str, n_classes: int):
+        super(ECHODataset, self).__init__()
+        self.meta = meta
+        self.n_classes = n_classes
+        self.data_dict = {}
+        self.data, self.label, self.label_type = [], [], []
+        for location in locations:
+            self.data_dict[location] = h5py.File(os.path.join(base_path, location, file_name), "r")
+        for idx in tqdm.tqdm(range(len(self.meta))):
+            echo_id = self.meta.loc[idx, "ECHO_ID"]
+            location = self.meta.loc[idx, "Location"]
+            if location == "client1":
+                label_type = torch.tensor([0], dtype=torch.long)
+            elif location == "client2":
+                label_type = torch.tensor([1], dtype=torch.long)
+            else:
+                label_type = torch.tensor([2], dtype=torch.long)
+            # label_type = np.array([int (s) for s in self.meta.loc[idx, "LabelType"].split(";")][1:])
+            data = np.array(self.data_dict[location][echo_id]["video"], dtype=np.uint8)
+            label = np.array(self.data_dict[location][echo_id]["mask"], dtype=np.uint8)
+            h, w = data.shape[-2:]
+            if label.shape[1] != data.shape[1]:
+                self.data.append(torch.tensor(data[0, 0, :, :], dtype=torch.float32).reshape(1, h, w))
+                self.data.append(torch.tensor(data[0, -1, :, :], dtype=torch.float32).reshape(1, h, w))
+                self.label.append(torch.tensor(label[0, :, :], dtype=torch.long))
+                self.label.append(torch.tensor(label[-1, :, :], dtype=torch.long))
+                self.label_type.append(label_type)
+                self.label_type.append(label_type)
+            else:
+                for i in range(label.shape[1]):
+                    self.data.append(torch.tensor(data[0, i, :, :], dtype=torch.float32).reshape(1, h, w))
+                    self.label.append(torch.tensor(label[0, i, :], dtype=torch.long))
+                    self.label_type.append(label_type)
+
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, item):
+        return self.data[item], self.label[item], self.label_type[item]
+
+    def _close_hdf5(self):
+        # pass
+        for location in self.data_dict.keys():
+            self.data_dict[location].close()
+
+    def __del__(self):
+        if hasattr(self, 'data_dict'):
+            self._close_hdf5()
+
 def get_dataset(
         data_list: list,
         base_path: str,

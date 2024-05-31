@@ -338,3 +338,17 @@ def hausdorff_distance(result, reference, voxelspacing=None, connectivity=1):
     hd2 = __surface_distances(reference, result, voxelspacing, connectivity).max()
     hd = max(hd1, hd2)
     return hd
+
+
+def shield(pred, mask):
+    # (batch, n_classes, h, w)
+    # shield_pred = torch.argmax(pred, dim=1) if pred.dim() == 4 else pred
+    if pred.dim() == 4:
+        pred = torch.argmax(pred, dim=1)
+    # (batch, h, w)
+    for idx in range(pred.shape[0]):
+        if mask[idx] == 1:
+            pred[idx][(pred[idx] == 2) | (pred[idx] == 3)] = 0
+        elif mask[idx] == 2:
+            pred[idx][(pred[idx] == 1) | (pred[idx] == 3)] = 0
+    return pred
