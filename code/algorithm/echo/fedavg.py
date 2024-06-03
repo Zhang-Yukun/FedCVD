@@ -221,11 +221,15 @@ class FedAvgSerialClientTrainer(SGDSerialClientTrainer):
         train_bar = tqdm.tqdm(initial=0, leave=True, total=len(self.train_loaders[idx]),
                          desc=train_desc.format(epoch, 0, 0), position=0)
         for data, label, mask in self.train_loaders[idx]:
-            data, label = data.to(self._device), label.to(self._device)
+            train_label = deepcopy(label)
+            unlabeled_batch = torch.ne(mask, 0).flatten()
+            train_label[unlabeled_batch] = torch.where(train_label[unlabeled_batch] == 0, -1,
+                                                       train_label[unlabeled_batch])
+            data, train_label, label = data.to(self._device), train_label.to(self._device), label.to(self._device)
 
             pred_score = self._model(data)
 
-            loss = self.criterion(pred_score, label)
+            loss = self.criterion(pred_score, train_label)
 
             self.optimizer.zero_grad()
             loss.backward()

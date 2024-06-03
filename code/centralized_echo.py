@@ -52,7 +52,7 @@ if __name__ == "__main__":
         n_classes=args.n_classes
     ) for i in range(1, 4)]
 
-    base_path = f"/data/zyk/code/fedmace_benchmark/output/echo/balance/centralized/{args.model}/"
+    base_path = f"/data/zyk/code/fedmace_benchmark/output/echo/balance/centralized-ignore/{args.model}/"
 
     batch_size = args.batch_size
     lr = args.lr
@@ -61,7 +61,7 @@ if __name__ == "__main__":
         DataLoader(test_dataset, batch_size=batch_size, num_workers=4, shuffle=False) for test_dataset in test_datasets
     ]
     model = resnet50(num_classes=args.n_classes) if args.model == "resnet50" else unet(n_classes=args.n_classes)
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(ignore_index=-1)
 
     evaluator = MultiLabelEvaluator()
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")

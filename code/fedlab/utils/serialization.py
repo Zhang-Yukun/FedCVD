@@ -53,11 +53,11 @@ class SerializationTool(object):
     @staticmethod
     def serialize_model(model: torch.nn.Module, cpu: bool = True) -> torch.Tensor:
         """Unfold model parameters, including trainable as well as untrainable parameters.
-        
+
         Unfold every layer of model, concate all of tensors into one vector.
         Return a `torch.Tensor` with shape ``(d, )``, where ``d`` is the total number of parameters in ``model``, including trainable as well as untrainable parameters.
 
-        Please note that we update the implementation. 
+        Please note that we update the implementation.
         Current version of serialization includes the parameters in batchnorm layers.
 
         Args:
@@ -90,11 +90,17 @@ class SerializationTool(object):
             numel = param.numel()
             size = param.size()
             if mode == "copy":
-                param.copy_(serialized_parameters[current_index:current_index + numel].view(size))
+                param.copy_(
+                    serialized_parameters[current_index:current_index +
+                                                        numel].view(size))
             elif mode == "add":
-                param.add_(serialized_parameters[current_index:current_index + numel].view(size))
+                param.add_(
+                    serialized_parameters[current_index:current_index +
+                                                        numel].view(size))
             elif mode == "sub":
-                param.sub_(serialized_parameters[current_index:current_index + numel].view(size))
+                param.sub_(
+                    serialized_parameters[current_index:current_index +
+                                                        numel].view(size))
             else:
                 raise ValueError(
                     "Invalid deserialize mode {}, require \"copy\", \"add\" or \"sub\" "
@@ -104,7 +110,7 @@ class SerializationTool(object):
     @staticmethod
     def serialize_trainable_model(model: torch.nn.Module, cpu: bool = True) -> torch.Tensor:
         """Unfold trainable model parameters.
-        
+
         Unfold every layer of model by iterating though ``model.parameters()``,  then concate all of tensors into one vector.
         Return a `torch.Tensor` with shape (size, ).
 
@@ -138,11 +144,17 @@ class SerializationTool(object):
             numel = parameter.data.numel()
             size = parameter.data.size()
             if mode == "copy":
-                parameter.data.copy_(serialized_parameters[current_index:current_index + numel].view(size))
+                parameter.data.copy_(
+                    serialized_parameters[current_index:current_index +
+                                                        numel].view(size))
             elif mode == "add":
-                parameter.data.add_(serialized_parameters[current_index:current_index + numel].view(size))
+                parameter.data.add_(
+                    serialized_parameters[current_index:current_index +
+                                                        numel].view(size))
             elif mode == "sub":
-                parameter.data.sub_(serialized_parameters[current_index:current_index + numel].view(size))
+                parameter.data.sub_(
+                    serialized_parameters[current_index:current_index +
+                                                        numel].view(size))
             else:
                 raise ValueError(
                     "Invalid deserialize mode {}, require \"copy\", \"add\" or \"sub\" "

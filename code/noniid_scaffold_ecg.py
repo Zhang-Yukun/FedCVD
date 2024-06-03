@@ -1,5 +1,5 @@
 
-from algorithm.echo.fedavg import FedAvgServerHandler, FedAvgSerialClientTrainer
+from algorithm.ecg.scaffold import ScaffoldNonIIDSerialClientTrainer, ScaffoldNonIIDServerHandler
 from algorithm.pipeline import Pipeline
 from fedlab.utils.functional import setup_seed
 from fedlab.utils.logger import Logger
@@ -10,22 +10,21 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 from model.resnet import resnet1d34
-from model.unet import unet
 from utils.evaluation import FedClientMultiLabelEvaluator, FedServerMultiLabelEvaluator
-from utils.dataloader import get_dataloader, get_dataset, get_echo_dataset
+from utils.dataloader import get_dataloader, get_dataset
 from utils.io import guarantee_path
 import json
 import argparse
-import wandb
 
 parser = argparse.ArgumentParser(description="Standalone training example")
 parser.add_argument("--seed", type=int, default=42)
-parser.add_argument("--batch_size", type=int, default=64)
-parser.add_argument("--lr", type=float, default=0.01)
+parser.add_argument("--server_lr", type=float, default=0.01)
+parser.add_argument("--batch_size", type=int, default=32)
+parser.add_argument("--client_lr", type=float, default=0.01)
 parser.add_argument("--communication_round", type=int, default=50)
 parser.add_argument("--max_epoch", type=int, default=1)
-parser.add_argument("--n_classes", type=int, default=4)
-parser.add_argument("--model", type=str, default="unet")
+parser.add_argument("--n_classes", type=int, default=20)
+parser.add_argument("--model", type=str, default="resnet1d34")
 parser.add_argument("--case_name", type=str, default="")
 parser.add_argument("--frac", type=float, default=1.0)
 
@@ -36,28 +35,29 @@ if __name__ == "__main__":
     max_epoch = args.max_epoch
     communication_round = args.communication_round
     batch_size = args.batch_size
-    lr = args.lr
-    num_clients = 3
+    lr = args.client_lr
+    server_lr = args.server_lr
+    num_clients = 4
     sample_ratio = 1
 
-    train_datasets = [get_echo_dataset(
+    train_datasets = [get_dataset(
         [
-            os.path.join("/data/zyk/data/dataset/ECHO/preprocessed/client" + str(i) + "/train.csv")
+            os.path.join("/data/zyk/data/dataset/ECG/noniid2-train/client" + str(i) + "/metadata.csv")
         ],
-        base_path="/data/zyk/data/dataset/ECHO/preprocessed",
-        locations=["client" + str(i)],
-        file_name="records.h5",
-        n_classes=4
-    ) for i in range(1, 4)]
-    test_datasets = [get_echo_dataset(
-        [os.path.join("/data/zyk/data/dataset/ECHO/preprocessed/client" + str(i) + "/test.csv")],
-        base_path="/data/zyk/data/dataset/ECHO/preprocessed",
-        locations=["client" + str(i)],
-        file_name="records.h5",
-        n_classes=4
-    ) for i in range(1, 4)]
+        base_path="/data/zyk/data/dataset/ECG/preprocessed",
+        locations=["client" + str(idx) for idx in range(1, 5)],
+        file_name="records_20.h5",
+        n_classes=20
+    ) for i in range(1, 5)]
+    test_datasets = [get_dataset(
+        [os.path.join("/data/zyk/data/dataset/ECG/preprocessed/client" + str(i) + "/test_20_r.csv")],
+        base_path="/data/zyk/data/dataset/ECG/preprocessed",
+        locations=["client" + str(idx) for idx in range(1, 5)],
+        file_name="records_20.h5",
+        n_classes=20
+    ) for i in range(1, 5)]
 
-    base_path = "/data/zyk/code/fedmace_benchmark/output/echo/balance/fedavg-ignore/"
+    base_path = "/data/zyk/code/fedmace_benchmark/output/scaffold/noniid/"
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     output_path = base_path + timestamp + "/"
 
@@ -67,55 +67,41 @@ if __name__ == "__main__":
     test_loaders = [
         DataLoader(test_dataset, batch_size=batch_size, shuffle=False) for test_dataset in test_datasets
     ]
-    model = unet()
-    criterion = nn.CrossEntropyLoss(ignore_index=-1)
-    client_evaluators = [FedClientMultiLabelEvaluator() for _ in range(1, 4)]
+    model = resnet1d34()
+    criterion = nn.BCELoss()
+    client_evaluators = [FedClientMultiLabelEvaluator() for _ in range(1, 5)]
     server_evaluator = FedServerMultiLabelEvaluator()
 
-    for idx in range(1, 4):
+    for idx in range(1, 5):
         guarantee_path(output_path + "client" + str(idx) + "/")
     guarantee_path(output_path + "server/")
 
     setting = {
-        "dataset": "ECHO",
-        "model": "unet",
+        "dataset": "ECG",
+        "model": "resnet1d34",
         "batch_size": batch_size,
         "client_lr": lr,
-        "criterion": "CELoss",
+        "criterion": "BCELoss",
         "num_clients": num_clients,
         "sample_ratio": sample_ratio,
         "communication_round": communication_round,
         "max_epoch": max_epoch,
+        "server_lr": server_lr,
         "seed": args.seed
     }
     with open(output_path + "setting.json", "w") as f:
         f.write(json.dumps(setting))
 
-    wandb.init(
-        project="FedCVD_ECHO_FL",
-        name=args.case_name,
-        config={
-            "dataset": "ECHO",
-            "model": args.model,
-            "batch_size": batch_size,
-            "lr": lr,
-            "criterion": "CELoss",
-            "max_epoch": max_epoch,
-            "seed": args.seed
-        }
-    )
-
     client_loggers = [
-        Logger(log_name="client" + str(idx), log_file=output_path + "client" + str(idx) + "/logger.log") for idx in range(1, 4)
+        Logger(log_name="client" + str(idx), log_file=output_path + "client" + str(idx) + "/logger.log") for idx in range(1, 5)
     ]
     server_logger = Logger(log_name="server", log_file=output_path + "server/logger.log")
 
-    trainer = FedAvgSerialClientTrainer(
+    trainer = ScaffoldNonIIDSerialClientTrainer(
         model=model,
         num_clients=num_clients,
         train_loaders=train_loaders,
         test_loaders=test_loaders,
-        num_classes=args.n_classes,
         lr=lr,
         criterion=criterion,
         max_epoch=max_epoch,
@@ -125,8 +111,8 @@ if __name__ == "__main__":
         logger=client_loggers
     )
 
-    handler = FedAvgServerHandler(
-        num_classes=args.n_classes,
+    handler = ScaffoldNonIIDServerHandler(
+        lr=server_lr,
         model=model,
         test_loaders=test_loaders,
         criterion=criterion,
