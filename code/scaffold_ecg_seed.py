@@ -14,9 +14,18 @@ from utils.evaluation import FedClientMultiLabelEvaluator, FedServerMultiLabelEv
 from utils.dataloader import get_dataloader, get_dataset
 from utils.io import guarantee_path
 import json
+import argparse
+
+parser = argparse.ArgumentParser(description="Standalone training example")
+parser.add_argument("--seed", type=int, default=42)
+parser.add_argument("--batch_size", type=int, default=32)
+parser.add_argument("--client_lr", type=float, default=0.1)
+parser.add_argument("--server_lr", type=float, default=1.0)
+
 
 if __name__ == "__main__":
-    setup_seed(42)
+    args = parser.parse_args()
+    setup_seed(args.seed)
 
     max_epoch = 1
     communication_round = 50
@@ -39,13 +48,13 @@ if __name__ == "__main__":
         n_classes=20
     ) for i in range(1, 5)]
 
-    base_path = "/data/zyk/code/fedmace_benchmark/output/scaffold/"
+    base_path = "/data/zyk/code/fedmace_benchmark/output/scaffold/seed/"
 
     for batch_size in [32]:
         # for server_lr in [0.001, 0.01, 0.1, 1]:
         # for server_lr in [0.01, 0.1, 1]:
-        for server_lr in [0.1]:
-            for client_lr in [0.1, 0.01, 0.001]:
+        for server_lr in [1]:
+            for client_lr in [0.1]:
             # for lr in [0.1]:
                 timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
                 output_path = base_path + timestamp + "/"
@@ -76,6 +85,7 @@ if __name__ == "__main__":
                     "sample_ratio": sample_ratio,
                     "communication_round": communication_round,
                     "max_epoch": max_epoch,
+                    "seed": args.seed
                 }
                 with open(output_path + "setting.json", "w") as f:
                     f.write(json.dumps(setting))

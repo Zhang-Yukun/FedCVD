@@ -105,5 +105,6 @@ def resnet1d34(input_channels=12, num_classes=20, task='multilabel'):
 
 
 def resnet50(pretrained=None, num_classes=4):
-    return torchvision.models.segmentation.deeplabv3_resnet50(weights_backbone=pretrained, num_classes=num_classes)
-                                                              #weights_backbone=None, weights=None)
+    model = torchvision.models.segmentation.deeplabv3_resnet50(weights_backbone=pretrained, num_classes=num_classes)
+    model.backbone["conv1"] = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+    return model

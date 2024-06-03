@@ -1,5 +1,5 @@
 
-from algorithm.ecg.fedopt import FedOptServerHandler, FedOptSerialClientTrainer
+from algorithm.echo.scaffold import ScaffoldSerialClientTrainer, ScaffoldServerHandler
 from algorithm.pipeline import Pipeline
 from fedlab.utils.functional import setup_seed
 from fedlab.utils.logger import Logger
@@ -10,25 +10,25 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 from model.resnet import resnet1d34
+from model.unet import unet
 from utils.evaluation import FedClientMultiLabelEvaluator, FedServerMultiLabelEvaluator
-from utils.dataloader import get_dataloader, get_dataset
+from utils.dataloader import get_dataloader, get_dataset, get_echo_dataset
 from utils.io import guarantee_path
 import json
 import argparse
+import wandb
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--seed', type=int, default=42)
-parser.add_argument('--server_lr', type=float, default=0.01)
-parser.add_argument('--client_lr', type=float, default=0.01)
-parser.add_argument('--batch_size', type=int, default=32)
-parser.add_argument('--max_epoch', type=int, default=1)
-parser.add_argument('--communication_round', type=int, default=50)
-parser.add_argument('--num_clients', type=int, default=4)
-parser.add_argument('--beta1', type=float, default=0.9)
-parser.add_argument('--beta2', type=float, default=0.99)
-parser.add_argument('--tau', type=float, default=1e-4)
-parser.add_argument('--case_name', type=str, default="")
-parser.add_argument('--option', type=str, default="adam")
+parser = argparse.ArgumentParser(description="Standalone training example")
+parser.add_argument("--seed", type=int, default=42)
+parser.add_argument("--server_lr", type=float, default=0.01)
+parser.add_argument("--batch_size", type=int, default=32)
+parser.add_argument("--client_lr", type=float, default=0.01)
+parser.add_argument("--communication_round", type=int, default=50)
+parser.add_argument("--max_epoch", type=int, default=1)
+parser.add_argument("--n_classes", type=int, default=4)
+parser.add_argument("--model", type=str, default="unet")
+parser.add_argument("--case_name", type=str, default="")
+parser.add_argument("--frac", type=float, default=1.0)
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -36,35 +36,30 @@ if __name__ == "__main__":
 
     max_epoch = args.max_epoch
     communication_round = args.communication_round
-    num_clients = args.num_clients
-    sample_ratio = 1
-    beta1 = args.beta1
-    beta2 = args.beta2
-    tau = args.tau
-    option = args.option
     batch_size = args.batch_size
+    lr = args.client_lr
     server_lr = args.server_lr
-    client_lr = args.client_lr
+    num_clients = 3
+    sample_ratio = 1
 
-    train_datasets = [get_dataset(
+    train_datasets = [get_echo_dataset(
         [
-            os.path.join("/data/zyk/data/dataset/ECG/preprocessed/client" + str(i) + "/train_valid_20_r.csv")
+            os.path.join("/data/zyk/data/dataset/ECHO/preprocessed/client" + str(i) + "/train.csv")
         ],
-        base_path="/data/zyk/data/dataset/ECG/preprocessed",
+        base_path="/data/zyk/data/dataset/ECHO/preprocessed",
         locations=["client" + str(i)],
-        file_name="records_20.h5",
-        n_classes=20
-    ) for i in range(1, 5)]
-    test_datasets = [get_dataset(
-        [os.path.join("/data/zyk/data/dataset/ECG/preprocessed/client" + str(i) + "/test_20_r.csv")],
-        base_path="/data/zyk/data/dataset/ECG/preprocessed",
+        file_name="records.h5",
+        n_classes=4
+    ) for i in range(1, 4)]
+    test_datasets = [get_echo_dataset(
+        [os.path.join("/data/zyk/data/dataset/ECHO/preprocessed/client" + str(i) + "/test.csv")],
+        base_path="/data/zyk/data/dataset/ECHO/preprocessed",
         locations=["client" + str(i)],
-        file_name="records_20.h5",
-        n_classes=20
-    ) for i in range(1, 5)]
+        file_name="records.h5",
+        n_classes=4
+    ) for i in range(1, 4)]
 
-
-    base_path = f"/data/zyk/code/fedmace_benchmark/output/fedopt/fed{option}/"
+    base_path = "/data/zyk/code/fedmace_benchmark/output/echo/balance/scaffold/"
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     output_path = base_path + timestamp + "/"
 
@@ -74,46 +69,57 @@ if __name__ == "__main__":
     test_loaders = [
         DataLoader(test_dataset, batch_size=batch_size, shuffle=False) for test_dataset in test_datasets
     ]
-    model = resnet1d34()
-    criterion = nn.BCELoss()
-    client_evaluators = [FedClientMultiLabelEvaluator() for _ in range(1, 5)]
+    model = unet()
+    criterion = nn.CrossEntropyLoss()
+    client_evaluators = [FedClientMultiLabelEvaluator() for _ in range(1, 4)]
     server_evaluator = FedServerMultiLabelEvaluator()
 
-    for idx in range(1, 5):
+    for idx in range(1, 4):
         guarantee_path(output_path + "client" + str(idx) + "/")
     guarantee_path(output_path + "server/")
 
     setting = {
-        "dataset": "ECG",
-        "model": "resnet1d34",
+        "dataset": "ECHO",
+        "model": "unet",
         "batch_size": batch_size,
-        "client_lr": client_lr,
+        "client_lr": lr,
         "server_lr": server_lr,
-        "beta1": beta1,
-        "beta2": beta2,
-        "tau": tau,
-        "option": option,
-        "criterion": "BCELoss",
+        "criterion": "CELoss",
         "num_clients": num_clients,
         "sample_ratio": sample_ratio,
         "communication_round": communication_round,
         "max_epoch": max_epoch,
+        "seed": args.seed
     }
     with open(output_path + "setting.json", "w") as f:
         f.write(json.dumps(setting))
 
+    wandb.init(
+        project="FedCVD_ECHO_FL",
+        name=args.case_name,
+        config={
+            "dataset": "ECHO",
+            "model": args.model,
+            "batch_size": batch_size,
+            "lr": lr,
+            "criterion": "CELoss",
+            "max_epoch": max_epoch,
+            "seed": args.seed
+        }
+    )
+
     client_loggers = [
-        Logger(log_name="client" + str(idx), log_file=output_path + "client" + str(idx) + "/logger.log")
-        for idx in range(1, 5)
+        Logger(log_name="client" + str(idx), log_file=output_path + "client" + str(idx) + "/logger.log") for idx in range(1, 4)
     ]
     server_logger = Logger(log_name="server", log_file=output_path + "server/logger.log")
 
-    trainer = FedOptSerialClientTrainer(
+    trainer = ScaffoldSerialClientTrainer(
         model=model,
         num_clients=num_clients,
         train_loaders=train_loaders,
         test_loaders=test_loaders,
-        lr=client_lr,
+        num_classes=args.n_classes,
+        lr=lr,
         criterion=criterion,
         max_epoch=max_epoch,
         output_path=output_path,
@@ -122,12 +128,9 @@ if __name__ == "__main__":
         logger=client_loggers
     )
 
-    handler = FedOptServerHandler(
+    handler = ScaffoldServerHandler(
         lr=server_lr,
-        beta1=beta1,
-        beta2=beta2,
-        tau=tau,
-        option=option,
+        num_classes=args.n_classes,
         model=model,
         test_loaders=test_loaders,
         criterion=criterion,

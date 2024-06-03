@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import pandas as pd
 import torch
 import sklearn.metrics as metrics
@@ -292,7 +294,6 @@ def __surface_distances(result, reference, voxelspacing=None, connectivity=1):
 
 
 def hausdorff_distance(result, reference, voxelspacing=None, connectivity=1):
-    print(result.shape, reference.shape)
     """
     Hausdorff Distance.
 
@@ -334,21 +335,68 @@ def hausdorff_distance(result, reference, voxelspacing=None, connectivity=1):
     -----
     This is a real metric. The binary images can therefore be supplied in any order.
     """
+    if np.sum(result) == 0 or np.sum(reference) == 0:
+        return 100
     hd1 = __surface_distances(result, reference, voxelspacing, connectivity).max()
     hd2 = __surface_distances(reference, result, voxelspacing, connectivity).max()
     hd = max(hd1, hd2)
     return hd
 
 
+def cal_hd(pred, target, mask, num_class=4, reduction='mean'):
+    hds = np.zeros(pred.shape[0])
+    for idx in range(pred.shape[0]):
+        if mask[idx] != 0:
+            hds[idx] = hausdorff_distance(pred[idx], target[idx])
+        else:
+            preds = np.array([np.where(pred[idx] == c, 1, 0) for c in range(1, num_class)])
+            targets = np.array([np.where(target[idx] == c, 1, 0) for c in range(1, num_class)])
+            hds[idx] = np.mean([hausdorff_distance(preds[i], targets[i]) for i in range(len(preds))])
+    if reduction == 'mean':
+        return np.mean(hds)
+    elif reduction == 'sum':
+        return np.sum(hds)
+    else:
+        return hds
+
 def shield(pred, mask):
     # (batch, n_classes, h, w)
-    # shield_pred = torch.argmax(pred, dim=1) if pred.dim() == 4 else pred
-    if pred.dim() == 4:
-        pred = torch.argmax(pred, dim=1)
+    shield_pred = torch.argmax(pred.detach(), dim=1) if pred.dim() == 4 else deepcopy(pred.detach())
+    # if pred.dim() == 4:
+    #     pred = torch.argmax(pred, dim=1)
+    one_mask = torch.eq(mask, 1).flatten()
+    two_mask = torch.eq(mask, 2).flatten()
+    shield_pred[one_mask] = torch.where(shield_pred[one_mask] != 1, 0, shield_pred[one_mask])
+    shield_pred[two_mask] = torch.where(shield_pred[two_mask] != 2, 0, shield_pred[two_mask])
+    # shield_pred[one_mask][(shield_pred[one_mask] == 2) | (shield_pred[one_mask] == 3)] = 0
+    # shield_pred[two_mask][(shield_pred[two_mask] == 1) | (shield_pred[two_mask] == 3)] = 0
     # (batch, h, w)
-    for idx in range(pred.shape[0]):
-        if mask[idx] == 1:
-            pred[idx][(pred[idx] == 2) | (pred[idx] == 3)] = 0
-        elif mask[idx] == 2:
-            pred[idx][(pred[idx] == 1) | (pred[idx] == 3)] = 0
-    return pred
+    # for idx in range(pred.shape[0]):
+    #     if mask[idx] == 1:
+    #         pred[idx][(pred[idx] == 2) | (pred[idx] == 3)] = 0
+    #     elif mask[idx] == 2:
+    #         pred[idx][(pred[idx] == 1) | (pred[idx] == 3)] = 0
+    return shield_pred
+
+def generate_pseudo_label(pred_label, true_label, mask):
+    # (batch, n_classes, h, w)
+    pseudo_label = deepcopy(pred_label.detach())
+    # (batch, h, w)
+    zero_mask = torch.eq(mask, 0).flatten()
+    one_mask = torch.eq(mask, 1).flatten()
+    two_mask = torch.eq(mask, 2).flatten()
+    pseudo_label[one_mask] = torch.where(pseudo_label[one_mask] == 1, 0, pseudo_label[one_mask])
+    pseudo_label[one_mask] = torch.where(true_label[one_mask] == 1, 1, pseudo_label[one_mask])
+    pseudo_label[two_mask] = torch.where(pseudo_label[two_mask] == 2, 0, pseudo_label[two_mask])
+    pseudo_label[two_mask] = torch.where(true_label[two_mask] == 2, 2, pseudo_label[two_mask])
+    pseudo_label[zero_mask] = true_label[zero_mask]
+    # pseudo_label[one_mask][pseudo_label[one_mask] == 1] = 0
+    # pseudo_label[one_mask][true_label[one_mask] != 0] = true_label[one_mask][true_label[one_mask] != 0]
+    # pseudo_label[two_mask][pseudo_label[two_mask] == 2] = 0
+    # pseudo_label[two_mask][true_label[two_mask] != 0] = true_label[two_mask][true_label[two_mask] != 0]
+    # for idx in range(pseudo_label.shape[0]):
+    #     if mask[idx] == 1:
+    #         pseudo_label[idx][(pseudo_label[idx] == 2) | (pseudo_label[idx] == 3)] = 0
+    #     elif mask[idx] == 2:
+    #         pseudo_label[idx][(pseudo_label[idx] == 1) | (pseudo_label[idx] == 3)] = 0
+    return pseudo_label
